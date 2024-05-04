@@ -173,6 +173,15 @@ func findAllBooks(coll *mongo.Collection) []map[string]interface{} {
 	return ret
 }
 
+type BookDTO struct {
+	Id     string `json:"id"`
+	Name   string `json:"name"`
+	Author string `json:"author"`
+	Pages  int    `json:"pages"`
+	Year   int    `json:"year"`
+	Isbn   string `json:"isbn,omitempty"`
+}
+
 func main() {
 	// Connect to the database. Such defer keywords are used once the local
 	// context returns; for this case, the local context is the main function
@@ -236,7 +245,6 @@ func main() {
 		books := findAllBooks(coll)
 		years := make([]interface{}, 0)
 		for _, book := range books {
-			fmt.Println(book["BookYear"])
 			years = append(years, book["BookYear"])
 		}
 		return c.Render(200, "year-table", years)
@@ -252,7 +260,94 @@ func main() {
 
 	e.GET("/api/books", func(c echo.Context) error {
 		books := findAllBooks(coll)
-		return c.JSON(http.StatusOK, books)
+		payload := make([]BookDTO, 0)
+		for _, book := range books {
+			obj := BookDTO{
+				Id:     book["ID"].(string),
+				Name:   book["BookName"].(string),
+				Author: book["BookAuthor"].(string),
+				Pages:  book["BookPages"].(int),
+				Year:   book["BookYear"].(int),
+				Isbn:   book["BookISBN"].(string),
+			}
+			payload = append(payload, obj)
+
+		}
+		fmt.Println(payload)
+		return c.JSON(http.StatusOK, payload)
+	})
+
+	e.POST("/api/books", func(c echo.Context) error {
+		books := new([]BookDTO)
+		err := c.Bind(books)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, "invalid payload")
+		}
+		resultJson := make([]BookDTO, 0)
+		for _, book := range *books {
+			bookStore := BookStore{
+				BookName:   book.Name,
+				BookAuthor: book.Author,
+				BookPages:  book.Pages,
+				BookYear:   book.Year,
+				BookISBN:   book.Isbn,
+			}
+			insertResult, err := coll.InsertOne(context.TODO(), bookStore)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, "error in data insertion")
+			}
+			insertedID := insertResult.InsertedID.(primitive.ObjectID)
+			payload := BookDTO{
+				Id:     insertedID.Hex(),
+				Name:   book.Name,
+				Author: book.Author,
+				Pages:  book.Pages,
+				Year:   book.Year,
+				Isbn:   book.Isbn,
+			}
+			resultJson = append(resultJson, payload)
+		}
+		return c.JSON(http.StatusCreated, resultJson)
+	})
+
+	e.PUT("/api/books", func(c echo.Context) error {
+		booksToUpdate := new([]BookDTO)
+		if err := c.Bind(booksToUpdate); err != nil {
+			return err
+		}
+		for _, book := range *booksToUpdate {
+			id, err := primitive.ObjectIDFromHex(book.Id)
+			result, err := coll.UpdateOne(
+				context.TODO(),
+				bson.M{"_id": id},
+				bson.M{
+					"$set": bson.M{
+						"BookName":   book.Name,
+						"BookAuthor": book.Author,
+						"BookPages":  book.Pages,
+						"BookYear":   book.Year,
+						"BookISBN":   book.Isbn,
+					},
+				})
+			fmt.Println(result)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, "error in updating data")
+			}
+		}
+		return c.JSON(http.StatusOK, booksToUpdate)
+	})
+
+	e.DELETE("/api/books/:id", func(c echo.Context) error {
+		id := c.Param("id")
+		objID, err := primitive.ObjectIDFromHex(id)
+		_, err = coll.DeleteOne(
+			context.TODO(),
+			bson.M{"_id": objID},
+		)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, "error in deleting the book")
+		}
+		return c.JSON(http.StatusOK, "Book deleted successfully")
 	})
 
 	e.Logger.Fatal(e.Start(":3030"))
