@@ -307,7 +307,7 @@ func main() {
 			}
 			resultJson = append(resultJson, payload)
 		}
-		return c.JSON(http.StatusCreated, resultJson)
+		return c.JSON(http.StatusOK, resultJson)
 	})
 
 	e.PUT("/api/books", func(c echo.Context) error {
