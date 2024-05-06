@@ -285,7 +285,9 @@ func main() {
 		}
 		resultJson := make([]BookDTO, 0)
 		for _, book := range *books {
+			id, err := primitive.ObjectIDFromHex(book.Id)
 			bookStore := BookStore{
+				Id: id,
 				BookName:   book.Name,
 				BookAuthor: book.Author,
 				BookPages:  book.Pages,
