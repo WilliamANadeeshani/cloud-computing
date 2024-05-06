@@ -287,7 +287,7 @@ func main() {
 		for _, book := range *books {
 			BookId, err := primitive.ObjectIDFromHex(book.Id)
 			bookStore := BookStore{
-				Id: BookId,
+				Id: book.Id,
 				BookName:   book.Name,
 				BookAuthor: book.Author,
 				BookPages:  book.Pages,
