@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"slices"
@@ -273,13 +274,21 @@ func main() {
 			payload = append(payload, obj)
 
 		}
-		fmt.Println(payload)
 		return c.JSON(http.StatusOK, payload)
 	})
 
 	e.POST("/api/books", func(c echo.Context) error {
+		body := c.Request().Body
+		data, err := ioutil.ReadAll(body)
+		if err != nil {
+			fmt.Println("Error reading request body:", err)
+			return err
+		}
+
+		// Convert the byte slice to a string for printing
+		fmt.Println("Request Body:", string(data))
 		books := new([]BookDTO)
-		err := c.Bind(books)
+		err = c.Bind(books)
 		if err != nil {
 			fmt.Println("error in conversion", err)
 			return c.JSON(http.StatusNotModified, "error in payload conversion ")
