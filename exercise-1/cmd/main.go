@@ -281,10 +281,11 @@ func main() {
 		books := new([]BookDTO)
 		err := c.Bind(books)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, "invalid payload")
+			return c.JSON(http.StatusNotModified, "error in payload conversion ")
 		}
 		resultJson := make([]BookDTO, 0)
 		for _, book := range *books {
+			fmt.Println(book)
 			BookId, _ := primitive.ObjectIDFromHex(book.Id)
 			bookStore := BookStore{
 				ID:         BookId,
@@ -294,10 +295,15 @@ func main() {
 				BookYear:   book.Year,
 				BookISBN:   book.Isbn,
 			}
-			_, err = coll.InsertOne(context.TODO(), bookStore)
-			// insertedID := insertResult.InsertedID.(primitive.ObjectID)
+			result, err := coll.InsertOne(context.TODO(), bookStore)
+			fmt.Println(result)
+			if err != nil {
+				return c.JSON(http.StatusNotModified, "invalid id")
+			}
+			insertedID := result.InsertedID.(primitive.ObjectID)
+			insertedIDString := insertedID.Hex()
 			payload := BookDTO{
-				Id:     book.Id,
+				Id:     insertedIDString,
 				Name:   book.Name,
 				Author: book.Author,
 				Pages:  book.Pages,
