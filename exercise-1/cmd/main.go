@@ -353,30 +353,28 @@ func main() {
 	})
 
 	e.PUT("/api/books", func(c echo.Context) error {
-		booksToUpdate := new([]BookDTO)
-		if err := c.Bind(booksToUpdate); err != nil {
+		bookToUpdate := new(BookDTO)
+		if err := c.Bind(bookToUpdate); err != nil {
 			return err
 		}
-		for _, book := range *booksToUpdate {
-			id, err := primitive.ObjectIDFromHex(book.Id)
-			result, err := coll.UpdateOne(
-				context.TODO(),
-				bson.M{"_id": id},
-				bson.M{
-					"$set": bson.M{
-						"BookName":   book.Name,
-						"BookAuthor": book.Author,
-						"BookPages":  book.Pages,
-						"BookYear":   book.Year,
-						"BookISBN":   book.Isbn,
-					},
-				})
-			fmt.Println(result)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, "error in updating data")
-			}
+		id, err := primitive.ObjectIDFromHex(bookToUpdate.Id)
+		result, err := coll.UpdateOne(
+			context.TODO(),
+			bson.M{"_id": id},
+			bson.M{
+				"$set": bson.M{
+					"BookName":   bookToUpdate.Name,
+					"BookAuthor": bookToUpdate.Author,
+					"BookPages":  bookToUpdate.Pages,
+					"BookYear":   bookToUpdate.Year,
+					"BookISBN":   bookToUpdate.Isbn,
+				},
+			})
+		fmt.Println(result)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, "error in updating data")
 		}
-		return c.JSON(http.StatusOK, booksToUpdate)
+		return c.JSON(http.StatusOK, bookToUpdate)
 	})
 
 	e.DELETE("/api/books/:id", func(c echo.Context) error {
