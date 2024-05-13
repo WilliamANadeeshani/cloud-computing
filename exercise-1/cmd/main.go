@@ -344,10 +344,10 @@ func main() {
 	e.DELETE("/api/books/:id", func(c echo.Context) error {
 		id := c.Param("id")
 		fmt.Println(id)
-		objID, err := primitive.ObjectIDFromHex(id)
+		//objID, err := primitive.ObjectIDFromHex(id)
 		result, err := coll.DeleteOne(
 			context.TODO(),
-			bson.M{"_id": objID},
+			bson.M{"id": id},
 		)
 		fmt.Println(result.DeletedCount)
 		if err != nil {
