@@ -285,16 +285,6 @@ func main() {
 	})
 
 	e.POST("/api/books", func(c echo.Context) error {
-		//body := c.Request().Body
-		//data, err := ioutil.ReadAll(body)
-		//if err != nil {
-		//	fmt.Println("Error reading request body:", err)
-		//	return err
-		//}
-		//
-		//// Convert the byte slice to a string for printing
-		//fmt.Println("Request Body:", string(data))
-
 		book := new(PostBookDTO)
 		err = c.Bind(book)
 		if err != nil {
@@ -323,32 +313,6 @@ func main() {
 			Year:   book.Year,
 			Isbn:   book.Isbn,
 		}
-
-		//resultJson := make(BookDTO, 0)
-		//for _, book := range *books {
-		//	bookStore := BookStore{
-		//		BookName:   book.Name,
-		//		BookAuthor: book.Author,
-		//		BookPages:  book.Pages,
-		//		BookYear:   book.Year,
-		//		BookISBN:   book.Isbn,
-		//	}
-		//	result, err := coll.InsertOne(context.TODO(), bookStore)
-		//	if err != nil {
-		//		return c.JSON(http.StatusNotModified, "invalid id")
-		//	}
-		//	insertedID := result.InsertedID.(primitive.ObjectID)
-		//	insertedIDString := insertedID.Hex()
-		//	payload := BookDTO{
-		//		Id:     insertedIDString,
-		//		Name:   book.Name,
-		//		Author: book.Author,
-		//		Pages:  book.Pages,
-		//		Year:   book.Year,
-		//		Isbn:   book.Isbn,
-		//	}
-		//	resultJson = append(resultJson, payload)
-		//}
 		return c.JSON(http.StatusOK, payload)
 	})
 
@@ -370,7 +334,7 @@ func main() {
 					"BookISBN":   bookToUpdate.Isbn,
 				},
 			})
-		fmt.Println(result)
+		fmt.Println("update:", result)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in updating data")
 		}
@@ -379,15 +343,16 @@ func main() {
 
 	e.DELETE("/api/books/:id", func(c echo.Context) error {
 		id := c.Param("id")
-		//objID, err := primitive.ObjectIDFromHex(id)
-		_, err = coll.DeleteOne(
+		objId, _ := primitive.ObjectIDFromHex(id)
+		result, err := coll.DeleteOne(
 			context.TODO(),
-			bson.M{"_id": id},
+			bson.M{"_id": objId},
 		)
+		fmt.Println("delete: ", result.DeletedCount)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in deleting the book")
 		}
-		return c.JSON(http.StatusOK, "Book deleted successfully")
+		return c.JSON(http.StatusOK, id)
 	})
 
 	e.Logger.Fatal(e.Start(":3030"))
