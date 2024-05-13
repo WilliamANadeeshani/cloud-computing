@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"slices"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 // Defines a "model" that we can use to communicate with the
@@ -168,10 +166,28 @@ func findAllBooks(coll *mongo.Collection) []map[string]interface{} {
 			"BookAuthor": res.BookAuthor,
 			"BookISBN":   res.BookISBN,
 			"BookPages":  res.BookPages,
+			"BookYear":   res.BookYear,
 		})
 	}
 
 	return ret
+}
+
+type BookDTO struct {
+	Id     string `json:"id"`
+	Name   string `json:"name"`
+	Author string `json:"author"`
+	Pages  int    `json:"pages"`
+	Year   int    `json:"year"`
+	Isbn   string `json:"isbn,omitempty"`
+}
+
+type PostBookDTO struct {
+	Name   string `json:"name"`
+	Author string `json:"author"`
+	Pages  int    `json:"pages"`
+	Year   int    `json:"year"`
+	Isbn   string `json:"isbn,omitempty"`
 }
 
 func main() {
@@ -182,24 +198,8 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	uri := os.Getenv("DATABASE_URI")
-	if len(uri) == 0 {
-		fmt.Printf("failure to load env variable\n")
-		os.Exit(1)
-	}
-
 	// TODO: make sure to pass the proper username, password, and port
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-	if err != nil {
-		fmt.Printf("failed to create client for MongoDB\n")
-		os.Exit(1)
-	}
-
-	err = client.Ping(ctx, readpref.Primary())
-	if err != nil {
-		fmt.Printf("failed to connect to MongoDB, please make sure the database is running\n")
-		os.Exit(1)
-	}
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb+srv://nadeeshaniawwa:qJAGwYojLeM1g7Zv@cluster0.0stniyu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"))
 
 	// This is another way to specify the call of a function. You can define inline
 	// functions (or anonymous functions, similar to the behavior in Python)
@@ -211,7 +211,7 @@ func main() {
 
 	// You can use such name for the database and collection, or come up with
 	// one by yourself!
-	coll, err := prepareDatabase(client, "exercise-2", "information")
+	coll, err := prepareDatabase(client, "exercise-1", "information")
 
 	prepareData(client, coll)
 
@@ -241,11 +241,21 @@ func main() {
 	})
 
 	e.GET("/authors", func(c echo.Context) error {
-		return c.NoContent(http.StatusNoContent)
+		books := findAllBooks(coll)
+		author := make([]interface{}, 0)
+		for _, book := range books {
+			author = append(author, book["BookAuthor"])
+		}
+		return c.Render(200, "authors-table", author)
 	})
 
 	e.GET("/years", func(c echo.Context) error {
-		return c.NoContent(http.StatusNoContent)
+		books := findAllBooks(coll)
+		years := make([]interface{}, 0)
+		for _, book := range books {
+			years = append(years, book["BookYear"])
+		}
+		return c.Render(200, "year-table", years)
 	})
 
 	e.GET("/search", func(c echo.Context) error {
@@ -258,7 +268,99 @@ func main() {
 
 	e.GET("/api/books", func(c echo.Context) error {
 		books := findAllBooks(coll)
-		return c.JSON(http.StatusOK, books)
+		payload := make([]BookDTO, 0)
+		for _, book := range books {
+			obj := BookDTO{
+				Id:     book["ID"].(string),
+				Name:   book["BookName"].(string),
+				Author: book["BookAuthor"].(string),
+				Pages:  book["BookPages"].(int),
+				Year:   book["BookYear"].(int),
+				Isbn:   book["BookISBN"].(string),
+			}
+			payload = append(payload, obj)
+
+		}
+		return c.JSON(http.StatusOK, payload)
+	})
+
+	e.POST("/api/books", func(c echo.Context) error {
+		book := new(PostBookDTO)
+		err = c.Bind(book)
+		if err != nil {
+			fmt.Println("error in conversion", err)
+			return c.JSON(http.StatusNotModified, "error in payload conversion ")
+		}
+
+		bookStore := BookStore{
+			BookName:   book.Name,
+			BookAuthor: book.Author,
+			BookPages:  book.Pages,
+			BookYear:   book.Year,
+			BookISBN:   book.Isbn,
+		}
+		result, err := coll.InsertOne(context.TODO(), bookStore)
+		if err != nil {
+			return c.JSON(http.StatusNotModified, "invalid id")
+		}
+		insertedID := result.InsertedID.(primitive.ObjectID)
+		insertedIDString := insertedID.Hex()
+		payload := BookDTO{
+			Id:     insertedIDString,
+			Name:   book.Name,
+			Author: book.Author,
+			Pages:  book.Pages,
+			Year:   book.Year,
+			Isbn:   book.Isbn,
+		}
+		return c.JSON(http.StatusOK, payload)
+	})
+
+	e.PUT("/api/books", func(c echo.Context) error {
+		bookToUpdate := new(BookDTO)
+		if err := c.Bind(bookToUpdate); err != nil {
+			return err
+		}
+		id, err := primitive.ObjectIDFromHex(bookToUpdate.Id)
+		result, err := coll.UpdateOne(
+			context.TODO(),
+			bson.M{"_id": id},
+			bson.M{
+				"$set": bson.M{
+					"BookName":   bookToUpdate.Name,
+					"BookAuthor": bookToUpdate.Author,
+					"BookPages":  bookToUpdate.Pages,
+					"BookYear":   bookToUpdate.Year,
+					"BookISBN":   bookToUpdate.Isbn,
+				},
+			})
+		fmt.Println(result)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, "error in updating data")
+		}
+		return c.JSON(http.StatusOK, bookToUpdate)
+	})
+
+	e.DELETE("/api/books/:id", func(c echo.Context) error {
+		id := c.Param("id")
+		fmt.Println(id)
+		_, err := primitive.ObjectIDFromHex(id)
+		result, err := coll.DeleteOne(
+			context.TODO(),
+			bson.M{"id": id},
+		)
+		fmt.Println(result.DeletedCount)
+		if result.DeletedCount == 0 {
+			result, err = coll.DeleteOne(
+				context.TODO(),
+				bson.D{{Key: id}},
+			)
+			fmt.Println("second round", result.DeletedCount)
+		}
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, "error in deleting the book")
+		}
+		return c.JSON(http.StatusOK, "Book deleted successfully")
 	})
 
 	e.Logger.Fatal(e.Start(":3030"))
