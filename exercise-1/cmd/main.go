@@ -287,14 +287,14 @@ func main() {
 		for _, book := range *books {
 			BookId, err := primitive.ObjectIDFromHex(book.Id)
 			bookStore := BookStore{
-				Id: book.Id,
+				ID:         BookId,
 				BookName:   book.Name,
 				BookAuthor: book.Author,
 				BookPages:  book.Pages,
 				BookYear:   book.Year,
 				BookISBN:   book.Isbn,
 			}
-			insertResult, err := coll.InsertOne(context.TODO(), bookStore)
+			_, err = coll.InsertOne(context.TODO(), bookStore)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, "error in data insertion")
 			}
