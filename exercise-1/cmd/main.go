@@ -379,10 +379,10 @@ func main() {
 
 	e.DELETE("/api/books/:id", func(c echo.Context) error {
 		id := c.Param("id")
-		objID, err := primitive.ObjectIDFromHex(id)
+		//objID, err := primitive.ObjectIDFromHex(id)
 		_, err = coll.DeleteOne(
 			context.TODO(),
-			bson.M{"_id": objID},
+			bson.M{"_id": id},
 		)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in deleting the book")
