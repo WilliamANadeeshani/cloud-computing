@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"slices"
@@ -183,6 +182,14 @@ type BookDTO struct {
 	Isbn   string `json:"isbn,omitempty"`
 }
 
+type PostBookDTO struct {
+	Name   string `json:"name"`
+	Author string `json:"author"`
+	Pages  string `json:"pages"`
+	Year   string `json:"year"`
+	Isbn   string `json:"isbn,omitempty"`
+}
+
 func main() {
 	// Connect to the database. Such defer keywords are used once the local
 	// context returns; for this case, the local context is the main function
@@ -278,51 +285,71 @@ func main() {
 	})
 
 	e.POST("/api/books", func(c echo.Context) error {
-		body := c.Request().Body
-		data, err := ioutil.ReadAll(body)
-		if err != nil {
-			fmt.Println("Error reading request body:", err)
-			return err
-		}
+		//body := c.Request().Body
+		//data, err := ioutil.ReadAll(body)
+		//if err != nil {
+		//	fmt.Println("Error reading request body:", err)
+		//	return err
+		//}
+		//
+		//// Convert the byte slice to a string for printing
+		//fmt.Println("Request Body:", string(data))
 
-		// Convert the byte slice to a string for printing
-		fmt.Println("Request Body:", string(data))
-		books := new([]BookDTO)
-		err = c.Bind(books)
+		book := new(PostBookDTO)
+		err = c.Bind(book)
 		if err != nil {
 			fmt.Println("error in conversion", err)
 			return c.JSON(http.StatusNotModified, "error in payload conversion ")
 		}
-		resultJson := make([]BookDTO, 0)
-		for _, book := range *books {
-			fmt.Println("post:", book)
-			BookId, _ := primitive.ObjectIDFromHex(book.Id)
-			bookStore := BookStore{
-				ID:         BookId,
-				BookName:   book.Name,
-				BookAuthor: book.Author,
-				BookPages:  book.Pages,
-				BookYear:   book.Year,
-				BookISBN:   book.Isbn,
-			}
-			result, err := coll.InsertOne(context.TODO(), bookStore)
-			fmt.Println(result)
-			if err != nil {
-				return c.JSON(http.StatusNotModified, "invalid id")
-			}
-			insertedID := result.InsertedID.(primitive.ObjectID)
-			insertedIDString := insertedID.Hex()
-			payload := BookDTO{
-				Id:     insertedIDString,
-				Name:   book.Name,
-				Author: book.Author,
-				Pages:  book.Pages,
-				Year:   book.Year,
-				Isbn:   book.Isbn,
-			}
-			resultJson = append(resultJson, payload)
+
+		bookStore := BookStore{
+			BookName:   book.Name,
+			BookAuthor: book.Author,
+			BookPages:  12,
+			BookYear:   12,
+			BookISBN:   book.Isbn,
 		}
-		return c.JSON(http.StatusOK, resultJson)
+		result, err := coll.InsertOne(context.TODO(), bookStore)
+		if err != nil {
+			return c.JSON(http.StatusNotModified, "invalid id")
+		}
+		insertedID := result.InsertedID.(primitive.ObjectID)
+		insertedIDString := insertedID.Hex()
+		payload := BookDTO{
+			Id:     insertedIDString,
+			Name:   book.Name,
+			Author: book.Author,
+			Pages:  12,
+			Year:   12,
+			Isbn:   book.Isbn,
+		}
+
+		//resultJson := make(BookDTO, 0)
+		//for _, book := range *books {
+		//	bookStore := BookStore{
+		//		BookName:   book.Name,
+		//		BookAuthor: book.Author,
+		//		BookPages:  book.Pages,
+		//		BookYear:   book.Year,
+		//		BookISBN:   book.Isbn,
+		//	}
+		//	result, err := coll.InsertOne(context.TODO(), bookStore)
+		//	if err != nil {
+		//		return c.JSON(http.StatusNotModified, "invalid id")
+		//	}
+		//	insertedID := result.InsertedID.(primitive.ObjectID)
+		//	insertedIDString := insertedID.Hex()
+		//	payload := BookDTO{
+		//		Id:     insertedIDString,
+		//		Name:   book.Name,
+		//		Author: book.Author,
+		//		Pages:  book.Pages,
+		//		Year:   book.Year,
+		//		Isbn:   book.Isbn,
+		//	}
+		//	resultJson = append(resultJson, payload)
+		//}
+		return c.JSON(http.StatusOK, payload)
 	})
 
 	e.PUT("/api/books", func(c echo.Context) error {
