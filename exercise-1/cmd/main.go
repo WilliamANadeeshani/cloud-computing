@@ -185,8 +185,8 @@ type BookDTO struct {
 type PostBookDTO struct {
 	Name   string `json:"name"`
 	Author string `json:"author"`
-	Pages  string `json:"pages"`
-	Year   string `json:"year"`
+	Pages  int    `json:"pages"`
+	Year   int    `json:"year"`
 	Isbn   string `json:"isbn,omitempty"`
 }
 
@@ -305,8 +305,8 @@ func main() {
 		bookStore := BookStore{
 			BookName:   book.Name,
 			BookAuthor: book.Author,
-			BookPages:  12,
-			BookYear:   12,
+			BookPages:  book.Pages,
+			BookYear:   book.Year,
 			BookISBN:   book.Isbn,
 		}
 		result, err := coll.InsertOne(context.TODO(), bookStore)
@@ -319,8 +319,8 @@ func main() {
 			Id:     insertedIDString,
 			Name:   book.Name,
 			Author: book.Author,
-			Pages:  12,
-			Year:   12,
+			Pages:  book.Pages,
+			Year:   book.Year,
 			Isbn:   book.Isbn,
 		}
 
