@@ -281,11 +281,12 @@ func main() {
 		books := new([]BookDTO)
 		err := c.Bind(books)
 		if err != nil {
+			fmt.Println("error in conversion", err)
 			return c.JSON(http.StatusNotModified, "error in payload conversion ")
 		}
 		resultJson := make([]BookDTO, 0)
 		for _, book := range *books {
-			fmt.Println(book)
+			fmt.Println("post:", book)
 			BookId, _ := primitive.ObjectIDFromHex(book.Id)
 			bookStore := BookStore{
 				ID:         BookId,
