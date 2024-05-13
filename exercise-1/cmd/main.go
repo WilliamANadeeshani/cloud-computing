@@ -285,7 +285,7 @@ func main() {
 		}
 		resultJson := make([]BookDTO, 0)
 		for _, book := range *books {
-			BookId, err := primitive.ObjectIDFromHex(book.Id)
+			BookId, _ := primitive.ObjectIDFromHex(book.Id)
 			bookStore := BookStore{
 				ID:         BookId,
 				BookName:   book.Name,
@@ -295,9 +295,6 @@ func main() {
 				BookISBN:   book.Isbn,
 			}
 			_, err = coll.InsertOne(context.TODO(), bookStore)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, "error in data insertion")
-			}
 			// insertedID := insertResult.InsertedID.(primitive.ObjectID)
 			payload := BookDTO{
 				Id:     book.Id,
