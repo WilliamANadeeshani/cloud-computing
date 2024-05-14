@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 // Defines a "model" that we can use to communicate with the
@@ -198,8 +200,24 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	uri := os.Getenv("DATABASE_URI")
+	if len(uri) == 0 {
+		fmt.Printf("failure to load env variable\n")
+		os.Exit(1)
+	}
+
 	// TODO: make sure to pass the proper username, password, and port
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb+srv://nadeeshaniawwa:qJAGwYojLeM1g7Zv@cluster0.0stniyu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		fmt.Printf("failed to create client for MongoDB\n")
+		os.Exit(1)
+	}
+
+	err = client.Ping(ctx, readpref.Primary())
+	if err != nil {
+		fmt.Printf("failed to connect to MongoDB, please make sure the database is running\n")
+		os.Exit(1)
+	}
 
 	// This is another way to specify the call of a function. You can define inline
 	// functions (or anonymous functions, similar to the behavior in Python)
@@ -292,6 +310,31 @@ func main() {
 			return c.JSON(http.StatusNotModified, "error in payload conversion ")
 		}
 
+		// create field to compare
+		objToComapare := bson.D{}
+		if book.Name != "" {
+			objToComapare = append(objToComapare, bson.E{"bookname", book.Name})
+		}
+		if book.Author != "" {
+			objToComapare = append(objToComapare, bson.E{"bookauthor", book.Author})
+		}
+		if book.Pages != 0 {
+			objToComapare = append(objToComapare, bson.E{"bookpages", book.Pages})
+		}
+		if book.Year != 0 {
+			objToComapare = append(objToComapare, bson.E{"bookyear", book.Year})
+		}
+		if book.Isbn != "" {
+			objToComapare = append(objToComapare, bson.E{"bookisbn", book.Isbn})
+		}
+
+		// check object existence
+		var existingBook BookStore
+		found := coll.FindOne(context.TODO(), objToComapare).Decode(&existingBook)
+		if found == nil {
+			return c.JSON(http.StatusNotModified, book)
+		}
+
 		bookStore := BookStore{
 			BookName:   book.Name,
 			BookAuthor: book.Author,
@@ -301,10 +344,11 @@ func main() {
 		}
 		result, err := coll.InsertOne(context.TODO(), bookStore)
 		if err != nil {
-			return c.JSON(http.StatusNotModified, "invalid id")
+			return c.JSON(http.StatusNotModified, "invalid on insertion")
 		}
-		insertedID := result.InsertedID.(primitive.ObjectID)
-		insertedIDString := insertedID.Hex()
+		bookId := result.InsertedID.(primitive.ObjectID)
+		insertedIDString := bookId.Hex()
+
 		payload := BookDTO{
 			Id:     insertedIDString,
 			Name:   book.Name,
@@ -321,20 +365,31 @@ func main() {
 		if err := c.Bind(bookToUpdate); err != nil {
 			return err
 		}
-		id, err := primitive.ObjectIDFromHex(bookToUpdate.Id)
+
+		objToComapare := bson.D{}
+		if bookToUpdate.Name != "" {
+			objToComapare = append(objToComapare, bson.E{"bookname", bookToUpdate.Name})
+		}
+		if bookToUpdate.Author != "" {
+			objToComapare = append(objToComapare, bson.E{"bookauthor", bookToUpdate.Author})
+		}
+		if bookToUpdate.Pages != 0 {
+			objToComapare = append(objToComapare, bson.E{"bookpages", bookToUpdate.Pages})
+		}
+		if bookToUpdate.Year != 0 {
+			objToComapare = append(objToComapare, bson.E{"bookyear", bookToUpdate.Year})
+		}
+		if bookToUpdate.Isbn != "" {
+			objToComapare = append(objToComapare, bson.E{"bookisbn", bookToUpdate.Isbn})
+		}
+
 		result, err := coll.UpdateOne(
 			context.TODO(),
-			bson.M{"_id": id},
+			bson.D{{Key: bookToUpdate.Id}},
 			bson.M{
-				"$set": bson.M{
-					"BookName":   bookToUpdate.Name,
-					"BookAuthor": bookToUpdate.Author,
-					"BookPages":  bookToUpdate.Pages,
-					"BookYear":   bookToUpdate.Year,
-					"BookISBN":   bookToUpdate.Isbn,
-				},
+				"$set": objToComapare,
 			})
-		fmt.Println(result)
+		fmt.Printf("update: mathced count - %s upsert count: %s update id: %s", result.MatchedCount, result.UpsertedCount)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in updating data")
 		}
@@ -347,16 +402,9 @@ func main() {
 		_, err := primitive.ObjectIDFromHex(id)
 		result, err := coll.DeleteOne(
 			context.TODO(),
-			bson.M{"id": id},
+			bson.D{{Key: id}},
 		)
-		fmt.Println(result.DeletedCount)
-		if result.DeletedCount == 0 {
-			result, err = coll.DeleteOne(
-				context.TODO(),
-				bson.D{{Key: id}},
-			)
-			fmt.Println("second round", result.DeletedCount)
-		}
+		fmt.Println("deleted: ", result.DeletedCount)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in deleting the book")
 		}

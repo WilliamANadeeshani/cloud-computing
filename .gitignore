@@ -1,5 +1,4 @@
 .idea
-exercise-1/.idea
-exercise-1/__MACOSX
-exercise-2/.idea
-exercise-2/__MACOSX
+*/.idea
+*/__MACOSX
+*/vendor
