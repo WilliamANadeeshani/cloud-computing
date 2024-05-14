@@ -311,21 +311,21 @@ func main() {
 		}
 
 		// create field to compare
-		objToComapare := bson.D{}
+		objToComapare := bson.M{}
 		if book.Name != "" {
-			objToComapare = append(objToComapare, bson.E{"bookname", book.Name})
+			objToComapare["bookname"] = book.Name
 		}
 		if book.Author != "" {
-			objToComapare = append(objToComapare, bson.E{"bookauthor", book.Author})
+			objToComapare["bookauthor"] = book.Author
 		}
 		if book.Pages != 0 {
-			objToComapare = append(objToComapare, bson.E{"bookpages", book.Pages})
+			objToComapare["bookpages"] = book.Pages
 		}
 		if book.Year != 0 {
-			objToComapare = append(objToComapare, bson.E{"bookyear", book.Year})
+			objToComapare["bookyear"] = book.Year
 		}
 		if book.Isbn != "" {
-			objToComapare = append(objToComapare, bson.E{"bookisbn", book.Isbn})
+			objToComapare["bookisbn"] = book.Isbn
 		}
 
 		// check object existence
@@ -361,31 +361,33 @@ func main() {
 	})
 
 	e.PUT("/api/books", func(c echo.Context) error {
-		bookToUpdate := new(BookDTO)
-		if err := c.Bind(bookToUpdate); err != nil {
+		book := new(BookDTO)
+		if err := c.Bind(book); err != nil {
 			return err
 		}
 
-		objToComapare := bson.D{}
-		if bookToUpdate.Name != "" {
-			objToComapare = append(objToComapare, bson.E{"bookname", bookToUpdate.Name})
+		objId, err := primitive.ObjectIDFromHex(book.Id)
+
+		objToComapare := bson.M{}
+		if book.Name != "" {
+			objToComapare["bookname"] = book.Name
 		}
-		if bookToUpdate.Author != "" {
-			objToComapare = append(objToComapare, bson.E{"bookauthor", bookToUpdate.Author})
+		if book.Author != "" {
+			objToComapare["bookauthor"] = book.Author
 		}
-		if bookToUpdate.Pages != 0 {
-			objToComapare = append(objToComapare, bson.E{"bookpages", bookToUpdate.Pages})
+		if book.Pages != 0 {
+			objToComapare["bookpages"] = book.Pages
 		}
-		if bookToUpdate.Year != 0 {
-			objToComapare = append(objToComapare, bson.E{"bookyear", bookToUpdate.Year})
+		if book.Year != 0 {
+			objToComapare["bookyear"] = book.Year
 		}
-		if bookToUpdate.Isbn != "" {
-			objToComapare = append(objToComapare, bson.E{"bookisbn", bookToUpdate.Isbn})
+		if book.Isbn != "" {
+			objToComapare["bookisbn"] = book.Isbn
 		}
 
 		result, err := coll.UpdateOne(
 			context.TODO(),
-			bson.D{{Key: bookToUpdate.Id}},
+			bson.M{"_id": objId},
 			bson.M{
 				"$set": objToComapare,
 			})
@@ -393,20 +395,22 @@ func main() {
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in updating data")
 		}
-		return c.JSON(http.StatusOK, bookToUpdate)
+		return c.JSON(http.StatusOK, book)
 	})
 
 	e.DELETE("/api/books/:id", func(c echo.Context) error {
 		id := c.Param("id")
-		fmt.Println(id)
-		_, err := primitive.ObjectIDFromHex(id)
+		objId, err := primitive.ObjectIDFromHex(id)
 		result, err := coll.DeleteOne(
 			context.TODO(),
-			bson.D{{Key: id}},
+			bson.M{"_id": objId},
 		)
 		fmt.Println("deleted: ", result.DeletedCount)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in deleting the book")
+		}
+		if result.DeletedCount == 0 {
+			return c.JSON(http.StatusAccepted, "Book does not exist")
 		}
 		return c.JSON(http.StatusOK, "Book deleted successfully")
 	})
