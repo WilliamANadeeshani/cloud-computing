@@ -114,32 +114,6 @@ func prepareData(client *mongo.Client, coll *mongo.Collection) {
 	}
 }
 
-// Generic method to perform "SELECT * FROM BOOKS" (if this was SQL, which
-// it is not :D ), and then we convert it into an array of map. In Golang, you
-// define a map by writing map[<key type>]<value type>{<key>:<value>}.
-// interface{} is a special type in Golang, basically a wildcard...
-func findAllBooks(coll *mongo.Collection) []map[string]interface{} {
-	cursor, err := coll.Find(context.TODO(), bson.D{{}})
-	var results []BookStore
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		panic(err)
-	}
-
-	var ret []map[string]interface{}
-	for _, res := range results {
-		ret = append(ret, map[string]interface{}{
-			"ID":         res.ID.Hex(),
-			"BookName":   res.BookName,
-			"BookAuthor": res.BookAuthor,
-			"BookISBN":   res.BookISBN,
-			"BookPages":  res.BookPages,
-			"BookYear":   res.BookYear,
-		})
-	}
-
-	return ret
-}
-
 type BookDTO struct {
 	Id     string `json:"id"`
 	Name   string `json:"name"`

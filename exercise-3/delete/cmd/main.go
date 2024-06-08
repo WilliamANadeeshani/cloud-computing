@@ -27,14 +27,6 @@ type BookStore struct {
 	BookYear   int
 }
 
-type PostBookDTO struct {
-	Name   string `json:"name"`
-	Author string `json:"author"`
-	Pages  int    `json:"pages"`
-	Year   int    `json:"year"`
-	Isbn   string `json:"isbn,omitempty"`
-}
-
 // Here we make sure the connection to the database is correct and initial
 // configurations exists. Otherwise, we create the proper database and collection
 // we will store the data.
@@ -122,15 +114,6 @@ func prepareData(client *mongo.Client, coll *mongo.Collection) {
 	}
 }
 
-type BookDTO struct {
-	Id     string `json:"id"`
-	Name   string `json:"name"`
-	Author string `json:"author"`
-	Pages  int    `json:"pages"`
-	Year   int    `json:"year"`
-	Isbn   string `json:"isbn,omitempty"`
-}
-
 func main() {
 	// Connect to the database. Such defer keywords are used once the local
 	// context returns; for this case, the local context is the main function
@@ -168,63 +151,22 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 
-	e.POST("/api/books", func(c echo.Context) error {
-		book := new(PostBookDTO)
-		err = c.Bind(book)
+	e.DELETE("/api/books/:id", func(c echo.Context) error {
+		id := c.Param("id")
+		objId, err := primitive.ObjectIDFromHex(id)
+		result, err := coll.DeleteOne(
+			context.TODO(),
+			bson.M{"_id": objId},
+		)
+		fmt.Println("deleted: ", result.DeletedCount)
 		if err != nil {
-			fmt.Println("error in conversion", err)
-			return c.JSON(http.StatusNotModified, "error in payload conversion ")
+			return c.JSON(http.StatusInternalServerError, "error in deleting the book")
 		}
-
-		// create field to compare
-		objToComapare := bson.M{}
-		if book.Name != "" {
-			objToComapare["bookname"] = book.Name
+		if result.DeletedCount == 0 {
+			return c.JSON(http.StatusAccepted, "Book does not exist")
 		}
-		if book.Author != "" {
-			objToComapare["bookauthor"] = book.Author
-		}
-		if book.Pages != 0 {
-			objToComapare["bookpages"] = book.Pages
-		}
-		if book.Year != 0 {
-			objToComapare["bookyear"] = book.Year
-		}
-		if book.Isbn != "" {
-			objToComapare["bookisbn"] = book.Isbn
-		}
-
-		// check object existence
-		var existingBook BookStore
-		found := coll.FindOne(context.TODO(), objToComapare).Decode(&existingBook)
-		if found == nil {
-			return c.JSON(http.StatusNotModified, book)
-		}
-
-		bookStore := BookStore{
-			BookName:   book.Name,
-			BookAuthor: book.Author,
-			BookPages:  book.Pages,
-			BookYear:   book.Year,
-			BookISBN:   book.Isbn,
-		}
-		result, err := coll.InsertOne(context.TODO(), bookStore)
-		if err != nil {
-			return c.JSON(http.StatusNotModified, "invalid on insertion")
-		}
-		bookId := result.InsertedID.(primitive.ObjectID)
-		insertedIDString := bookId.Hex()
-
-		payload := BookDTO{
-			Id:     insertedIDString,
-			Name:   book.Name,
-			Author: book.Author,
-			Pages:  book.Pages,
-			Year:   book.Year,
-			Isbn:   book.Isbn,
-		}
-		return c.JSON(http.StatusOK, payload)
+		return c.JSON(http.StatusOK, "Book deleted successfully")
 	})
 
-	e.Logger.Fatal(e.Start(":3032"))
+	e.Logger.Fatal(e.Start(":3034"))
 }
