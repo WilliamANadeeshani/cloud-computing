@@ -23,5 +23,5 @@ COPY --from=builder /app/main .
 
 ENV DATABASE_URI="mongodb+srv://nadeeshaniawwa:qJAGwYojLeM1g7Zv@cluster0.0stniyu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
-EXPOSE 3033
+EXPOSE 3032
 CMD ["./main"]
