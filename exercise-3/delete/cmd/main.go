@@ -153,17 +153,22 @@ func main() {
 
 	e.DELETE("/api/books/:id", func(c echo.Context) error {
 		id := c.Param("id")
-		objId, err := primitive.ObjectIDFromHex(id)
+		fmt.Println(id)
+		_, err := primitive.ObjectIDFromHex(id)
 		result, err := coll.DeleteOne(
 			context.TODO(),
-			bson.M{"_id": objId},
+			bson.M{"id": id},
 		)
-		fmt.Println("deleted: ", result.DeletedCount)
+		fmt.Println(result.DeletedCount)
+		if result.DeletedCount == 0 {
+			result, err = coll.DeleteOne(
+				context.TODO(),
+				bson.D{{Key: id}},
+			)
+			fmt.Println("second round", result.DeletedCount)
+		}
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in deleting the book")
-		}
-		if result.DeletedCount == 0 {
-			return c.JSON(http.StatusAccepted, "Book does not exist")
 		}
 		return c.JSON(http.StatusOK, "Book deleted successfully")
 	})

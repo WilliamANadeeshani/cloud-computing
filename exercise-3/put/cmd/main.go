@@ -161,41 +161,28 @@ func main() {
 	e.Use(middleware.Logger())
 
 	e.PUT("/api/books", func(c echo.Context) error {
-		book := new(BookDTO)
-		if err := c.Bind(book); err != nil {
+		bookToUpdate := new(BookDTO)
+		if err := c.Bind(bookToUpdate); err != nil {
 			return err
 		}
-
-		objId, err := primitive.ObjectIDFromHex(book.Id)
-
-		objToComapare := bson.M{}
-		if book.Name != "" {
-			objToComapare["bookname"] = book.Name
-		}
-		if book.Author != "" {
-			objToComapare["bookauthor"] = book.Author
-		}
-		if book.Pages != 0 {
-			objToComapare["bookpages"] = book.Pages
-		}
-		if book.Year != 0 {
-			objToComapare["bookyear"] = book.Year
-		}
-		if book.Isbn != "" {
-			objToComapare["bookisbn"] = book.Isbn
-		}
-
+		id, err := primitive.ObjectIDFromHex(bookToUpdate.Id)
 		result, err := coll.UpdateOne(
 			context.TODO(),
-			bson.M{"_id": objId},
+			bson.M{"_id": id},
 			bson.M{
-				"$set": objToComapare,
+				"$set": bson.M{
+					"BookName":   bookToUpdate.Name,
+					"BookAuthor": bookToUpdate.Author,
+					"BookPages":  bookToUpdate.Pages,
+					"BookYear":   bookToUpdate.Year,
+					"BookISBN":   bookToUpdate.Isbn,
+				},
 			})
-		fmt.Printf("update: mathced count - %s upsert count: %s update id: %s", result.MatchedCount, result.UpsertedCount)
+		fmt.Println(result)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, "error in updating data")
 		}
-		return c.JSON(http.StatusOK, book)
+		return c.JSON(http.StatusOK, bookToUpdate)
 	})
 
 	e.Logger.Fatal(e.Start(":3033"))

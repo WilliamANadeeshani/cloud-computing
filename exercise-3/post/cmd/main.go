@@ -176,31 +176,6 @@ func main() {
 			return c.JSON(http.StatusNotModified, "error in payload conversion ")
 		}
 
-		// create field to compare
-		objToComapare := bson.M{}
-		if book.Name != "" {
-			objToComapare["bookname"] = book.Name
-		}
-		if book.Author != "" {
-			objToComapare["bookauthor"] = book.Author
-		}
-		if book.Pages != 0 {
-			objToComapare["bookpages"] = book.Pages
-		}
-		if book.Year != 0 {
-			objToComapare["bookyear"] = book.Year
-		}
-		if book.Isbn != "" {
-			objToComapare["bookisbn"] = book.Isbn
-		}
-
-		// check object existence
-		var existingBook BookStore
-		found := coll.FindOne(context.TODO(), objToComapare).Decode(&existingBook)
-		if found == nil {
-			return c.JSON(http.StatusNotModified, book)
-		}
-
 		bookStore := BookStore{
 			BookName:   book.Name,
 			BookAuthor: book.Author,
@@ -210,11 +185,10 @@ func main() {
 		}
 		result, err := coll.InsertOne(context.TODO(), bookStore)
 		if err != nil {
-			return c.JSON(http.StatusNotModified, "invalid on insertion")
+			return c.JSON(http.StatusNotModified, "invalid id")
 		}
-		bookId := result.InsertedID.(primitive.ObjectID)
-		insertedIDString := bookId.Hex()
-
+		insertedID := result.InsertedID.(primitive.ObjectID)
+		insertedIDString := insertedID.Hex()
 		payload := BookDTO{
 			Id:     insertedIDString,
 			Name:   book.Name,
